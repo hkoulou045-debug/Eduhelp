@@ -5,133 +5,136 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>EduHelp - Community</title>
   <script src="https://cdn.tailwindcss.com"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.27.0/dist/supabase.min.js"></script>
 </head>
-<body class="bg-gray-100 text-gray-800">  
-  <!-- Header -->  
+<body class="bg-gray-100 text-gray-800">
+
+  <!-- Header -->
   <header class="bg-blue-600 text-white p-6 text-center shadow">
     <h1 class="text-3xl font-bold">EduHelp 💬</h1>
     <p class="mt-2">Students helping students worldwide</p>
-  </header>  
+  </header>
 
-  <!-- Search Bar -->  
-  <section class="max-w-2xl mx-auto mt-6 relative">
-    <span class="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">🔍</span>
-    <input id="search" type="text" placeholder="Search posts..." 
-      class="w-full p-3 pl-10 border rounded-xl shadow focus:outline-none focus:ring-2 focus:ring-blue-400" />
-  </section>  
+  <!-- Search -->
+  <section class="max-w-2xl mx-auto mt-6">
+    <input id="search" type="text" placeholder="Search posts..."
+      class="w-full p-3 border rounded-xl shadow">
+  </section>
 
-  <!-- Create Post -->  
+  <!-- Create Post -->
   <section class="max-w-2xl mx-auto mt-6 bg-white p-6 rounded-2xl shadow">
     <h2 class="text-xl font-bold mb-4">Create a Post</h2>
-    <input id="title" type="text" placeholder="Title (e.g. I don't understand algebra)" 
-      class="w-full p-3 border rounded mb-3" />
-    <textarea id="content" placeholder="Explain your problem..." 
+    <input id="title" type="text" placeholder="Title"
+      class="w-full p-3 border rounded mb-3">
+    <textarea id="content" placeholder="Explain your problem..."
       class="w-full p-3 border rounded mb-4"></textarea>
-    <button onclick="createPost()" 
-      class="bg-blue-600 text-white px-4 py-2 rounded-xl w-full hover:bg-blue-700">
+    <button onclick="createPost()"
+      class="bg-blue-600 text-white px-4 py-2 rounded-xl w-full">
       Post
     </button>
-  </section>  
+  </section>
 
-  <!-- Posts Feed -->  
-  <section id="posts" class="max-w-2xl mx-auto mt-8 space-y-6"></section>  
+  <!-- Posts -->
+  <section id="posts" class="max-w-2xl mx-auto mt-8 space-y-6"></section>
 
-  <script>
-    // ⚡ Remplace par tes infos Supabase
-    const supabaseUrl = 'SUPABASE_URL';
-    const supabaseKey = 'SUPABASE_ANON_KEY';
-    const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+<script>
+  let allPosts = JSON.parse(localStorage.getItem("posts")) || [];
 
-    let allPosts = [];
+  function savePosts() {
+    localStorage.setItem("posts", JSON.stringify(allPosts));
+  }
 
-    // Charger les posts depuis Supabase
-    async function loadPosts() {
-      const { data, error } = await supabase.from('posts').select('*').order('created_at', { ascending: false });
-      if(error){ console.error(error); return; }
-      allPosts = data;
-      displayPosts(allPosts);
-    }
+  function displayPosts(posts) {
+    const container = document.getElementById("posts");
+    container.innerHTML = "";
 
-    // Afficher les posts sur le DOM
-    function displayPosts(posts) {
-      const container = document.getElementById("posts");
-      container.innerHTML = '';
-      posts.forEach((post, index) => {
-        const div = document.createElement('div');
-        div.className = "bg-white p-5 rounded-2xl shadow mb-4";
-        div.innerHTML = `
-          <h3 class="text-lg font-bold">${post.title}</h3>
-          <p class="mt-2">${post.content}</p>
-          <button onclick="toggleReplyBox(${index})" class="text-blue-600 mt-3">Reply</button>
-          <div id="replyBox-${index}" class="mt-3 hidden">
-            <textarea id="replyInput-${index}" placeholder="Write a reply..." class="w-full p-2 border rounded"></textarea>
-            <button onclick="addReply(${index})" class="mt-2 bg-blue-500 text-white px-3 py-1 rounded">Send</button>
-          </div>
-          <div class="replies mt-4 space-y-2"></div>
-        `;
-        container.appendChild(div);
+    posts.forEach((post, index) => {
+      const div = document.createElement("div");
+      div.className = "bg-white p-5 rounded-2xl shadow";
 
-        // Ajouter les replies déjà existantes
-        if(post.replies){
-          const repliesDiv = div.querySelector('.replies');
-          post.replies.forEach(reply => {
-            const replyEl = document.createElement("div");
-            replyEl.className = "bg-gray-100 p-3 rounded mt-2";
-            replyEl.innerText = reply;
-            repliesDiv.appendChild(replyEl);
-          });
-        }
+      div.innerHTML = `
+        <h3 class="text-lg font-bold">${post.title}</h3>
+        <p class="mt-2">${post.content}</p>
+
+        <button onclick="toggleReply(${index})" class="text-blue-600 mt-3">Reply</button>
+
+        <div id="replyBox-${index}" class="hidden mt-3">
+          <textarea id="replyInput-${index}" class="w-full p-2 border rounded"></textarea>
+          <button onclick="addReply(${index})"
+            class="mt-2 bg-blue-500 text-white px-3 py-1 rounded">
+            Send
+          </button>
+        </div>
+
+        <div class="mt-4 space-y-2" id="replies-${index}"></div>
+      `;
+
+      container.appendChild(div);
+
+      // afficher replies
+      const repliesDiv = document.getElementById(`replies-${index}`);
+      (post.replies || []).forEach(r => {
+        const el = document.createElement("div");
+        el.className = "bg-gray-100 p-3 rounded";
+        el.innerText = r;
+        repliesDiv.appendChild(el);
       });
+    });
+  }
+
+  function createPost() {
+    const title = document.getElementById("title").value.trim();
+    const content = document.getElementById("content").value.trim();
+
+    if (!title || !content) {
+      alert("Remplis tout");
+      return;
     }
 
-    // Créer un post
-    async function createPost() {
-      const title = document.getElementById("title").value.trim();
-      const content = document.getElementById("content").value.trim();
-      if(!title || !content){ alert("Please fill all fields"); return; }
-
-      const { data, error } = await supabase.from('posts').insert([{ title, content, replies: [] }]).select();
-      if(error){ console.error(error); return; }
-
-      document.getElementById("title").value = "";
-      document.getElementById("content").value = "";
-      loadPosts();
-    }
-
-    // Toggle reply box
-    function toggleReplyBox(index) {
-      document.getElementById(`replyBox-${index}`).classList.toggle("hidden");
-    }
-
-    // Ajouter une reply
-    async function addReply(index) {
-      const input = document.getElementById(`replyInput-${index}`);
-      const text = input.value.trim();
-      if(!text) return;
-
-      const post = allPosts[index];
-      post.replies = post.replies || [];
-      post.replies.push(text);
-
-      const { error } = await supabase.from('posts').update({ replies: post.replies }).eq('id', post.id);
-      if(error){ console.error(error); return; }
-
-      input.value = '';
-      loadPosts();
-    }
-
-    // Recherche live
-    document.getElementById("search").addEventListener("input", function(){
-      const query = this.value.toLowerCase();
-      const filtered = allPosts.filter(post => 
-        post.title.toLowerCase().includes(query) || post.content.toLowerCase().includes(query)
-      );
-      displayPosts(filtered);
+    allPosts.unshift({
+      title,
+      content,
+      replies: []
     });
 
-    // Charger les posts au démarrage
-    loadPosts();
-  </script>
+    savePosts();
+
+    document.getElementById("title").value = "";
+    document.getElementById("content").value = "";
+
+    displayPosts(allPosts);
+  }
+
+  function toggleReply(index) {
+    document.getElementById(`replyBox-${index}`).classList.toggle("hidden");
+  }
+
+  function addReply(index) {
+    const input = document.getElementById(`replyInput-${index}`);
+    const text = input.value.trim();
+    if (!text) return;
+
+    allPosts[index].replies.push(text);
+    savePosts();
+
+    input.value = "";
+    displayPosts(allPosts);
+  }
+
+  // recherche
+  document.getElementById("search").addEventListener("input", function () {
+    const q = this.value.toLowerCase();
+
+    const filtered = allPosts.filter(p =>
+      p.title.toLowerCase().includes(q) ||
+      p.content.toLowerCase().includes(q)
+    );
+
+    displayPosts(filtered);
+  });
+
+  // initial
+  displayPosts(allPosts);
+</script>
+
 </body>
 </html>
